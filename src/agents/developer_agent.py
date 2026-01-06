@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import re
 from typing import Any
 
 from langchain_core.messages import AIMessage
@@ -182,6 +184,18 @@ Engineering quality bar:
         """
         architecture = architecture_message.artifacts.get("architecture", {})
 
+        max_stories_env = os.getenv("SDLC_CODEGEN_MAX_STORIES")
+        max_stories: int | None = None
+        if max_stories_env is not None and max_stories_env.strip():
+            try:
+                max_stories = max(1, int(max_stories_env.strip()))
+            except ValueError:
+                max_stories = None
+
+        stories: list[dict[str, Any]] = [s for s in (context.stories or []) if isinstance(s, dict)]
+        stories_sorted = sorted(stories, key=lambda s: int(s.get("priority", 999)) if str(s.get("priority", "")).isdigit() else 999)
+        stories_to_implement = stories_sorted if max_stories is None else stories_sorted[:max_stories]
+
         input_message = AgentMessage(
             from_agent=AgentRole.ARCHITECT,
             to_agent=self.role,
@@ -194,8 +208,8 @@ Description: {context.project_description}
 Architecture:
 {json.dumps(architecture, indent=2)}
 
-Stories to implement:
-{json.dumps(context.stories[:5], indent=2)}  # Start with first 5 stories
+Stories to implement (prioritized):
+{json.dumps(stories_to_implement, indent=2)}
 
 Generate:
 1. Project structure with all necessary files
@@ -302,6 +316,68 @@ Ensure code is production-ready with proper error handling and logging.""",
         if not self._github_client:
             return {"error": "GitHub client not configured"}
 
+        def _extract_pr_fields(payload: object) -> tuple[int | None, str | None, object | None]:
+            """Best-effort extraction of PR number + URL from MCP responses."""
+            raw: object | None = None
+            if isinstance(payload, dict):
+                raw = payload
+                # Common keys across different MCP implementations
+                for num_key in ("number", "pr_number", "pullNumber", "pull_number", "id"):
+                    v = payload.get(num_key)
+                    if isinstance(v, int):
+                        pr_number = v
+                        break
+                    if isinstance(v, str) and v.isdigit():
+                        pr_number = int(v)
+                        break
+                else:
+                    pr_number = None
+
+                for url_key in ("html_url", "url", "pr_url", "web_url"):
+                    u = payload.get(url_key)
+                    if isinstance(u, str) and u.startswith("http"):
+                        pr_url = u
+                        break
+                else:
+                    pr_url = None
+
+                # Some servers wrap the PR in a nested object
+                for nested_key in ("pull_request", "pullRequest", "pr", "data"):
+                    nested = payload.get(nested_key)
+                    if isinstance(nested, dict):
+                        n_num, n_url, _ = _extract_pr_fields(nested)
+                        pr_number = pr_number or n_num
+                        pr_url = pr_url or n_url
+
+                # Some servers return JSON as text
+                text = payload.get("text")
+                if (pr_number is None or pr_url is None) and isinstance(text, str):
+                    try:
+                        parsed = json.loads(text)
+                        t_num, t_url, _ = _extract_pr_fields(parsed)
+                        pr_number = pr_number or t_num
+                        pr_url = pr_url or t_url
+                    except Exception:
+                        # Extract URL and number heuristically
+                        m_url = re.search(r"https?://\S+", text)
+                        if m_url:
+                            pr_url = pr_url or m_url.group(0).rstrip(")].,\"'")
+                        m_num = re.search(r"\bpull\s*/\s*(\d+)\b|\bPR\s*#\s*(\d+)\b", text, re.IGNORECASE)
+                        if m_num:
+                            pr_number = pr_number or int(next(g for g in m_num.groups() if g))
+
+                return pr_number, pr_url, raw
+
+            if isinstance(payload, str):
+                raw = payload
+                m_url = re.search(r"https?://\S+", payload)
+                pr_url = m_url.group(0).rstrip(")].,\"'") if m_url else None
+                m_num = re.search(r"\b/pull/(\d+)\b|\bPR\s*#\s*(\d+)\b", payload, re.IGNORECASE)
+                pr_number = int(next(g for g in m_num.groups() if g)) if m_num else None
+                return pr_number, pr_url, raw
+
+            return None, None, payload
+
         try:
             # Generate PR description
             pr_body = f"""## {context.project_name}
@@ -315,7 +391,7 @@ This PR implements the following stories:
 
 ### Architecture
 - Components: {len(context.architecture.get('components', []))}
-- APIs: {sum(len(c.get('apis', [])) for c in context.architecture.get('components', []))}
+- APIs: {sum(len((c.get('interfaces') or {}).get('apis', [])) for c in context.architecture.get('components', []))}
 
 ### Files Changed
 {chr(10).join(f"- `{path}`" for path in context.code_artifacts.keys())}
@@ -336,10 +412,13 @@ This PR implements the following stories:
                 },
             )
 
+            pr_number, pr_url, raw = _extract_pr_fields(result)
+
             return {
                 "status": "success",
-                "pr_number": result.get("number"),
-                "pr_url": result.get("html_url"),
+                "pr_number": pr_number,
+                "pr_url": pr_url,
+                "raw": raw,
             }
 
         except Exception as e:

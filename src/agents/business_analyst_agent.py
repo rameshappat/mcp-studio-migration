@@ -109,6 +109,9 @@ Required JSON shape (you may add additional fields, but keep these keys):
 Quality bar:
 - Backlog should be implementable by an engineering team without guesswork.
 - Acceptance criteria must be testable and unambiguous.
+- Do NOT optimize for brevity. Create as many Epics/Stories/Tasks as needed to fully cover the requirements.
+- Prefer deep detail over shallow coverage: include happy paths, edge cases, failures, security, operability, and observability work.
+- Ensure non-functional coverage: security, compliance posture (without making legal claims), operability, and observability.
 """
 
     def set_ado_client(self, ado_client: Any) -> None:
@@ -176,12 +179,18 @@ Quality bar:
             content=f"""Based on the following requirements, create Epics and User Stories 
 for Azure DevOps Boards.
 
+Goal:
+- Produce a demo-ready, execution-ready backlog (enterprise-grade) with enough detail to start building immediately.
+- Include enabling work: CI/CD, observability, security, data model, and operational readiness.
+
 Requirements:
 {json.dumps(requirements, indent=2)}
 
 Create detailed work items following Agile best practices.
-Ensure proper hierarchy: Epic -> Story -> Task
-Include acceptance criteria in Gherkin format.""",
+Ensure proper hierarchy: Epic -> Story -> Task.
+Include acceptance criteria in Gherkin format.
+Ensure every Epic and Story maps to one or more REQ-xxx ids.
+Include explicit assumptions and open questions when details are missing.""",
         )
 
         return await self.process(input_message, context)

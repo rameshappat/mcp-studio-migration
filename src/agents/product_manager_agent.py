@@ -95,8 +95,10 @@ Required JSON shape (you may add additional fields, but keep these keys):
 }
 
 Quality bar:
-- Aim for 8–15 well-scoped requirements suitable for a first release.
-- Requirements must be consistent with each other and feasible for a small team to build.
+- Do NOT optimize for brevity. Include as many requirements as needed to cover the idea comprehensively.
+- If the product is complex, it is normal to produce dozens of requirements spanning functional + non-functional scope.
+- Include a mix of functional requirements and explicit non-functional requirements (security, availability, operability, observability).
+- Requirements must be consistent with each other and feasible for a small team to build over multiple milestones.
 """
 
     async def _process_response(
@@ -155,17 +157,26 @@ Quality bar:
         Returns:
             Agent message with generated requirements.
         """
-        prompt_parts = [
-            f"Generate business requirements for a new product in the project: {context.project_name}."
+        prompt_parts: list[str] = [
+            f"Generate business requirements for a new product in the project: {context.project_name}.",
+            "Treat this as an enterprise stakeholder demo: output should be execution-ready and technically plausible.",
         ]
 
         if domain:
-            prompt_parts.append(f"Focus on the {domain} domain.")
+            # In this project, the runner often passes the full product idea in `domain`.
+            # Prefer including it verbatim when it looks like a natural-language description.
+            if len(domain.strip()) > 40 or "\n" in domain:
+                prompt_parts.append("Product idea:\n" + domain.strip())
+            else:
+                prompt_parts.append(f"Domain focus: {domain.strip()}.")
 
         if constraints:
-            prompt_parts.append(f"Consider these constraints: {', '.join(constraints)}")
+            prompt_parts.append(f"Constraints: {', '.join(constraints)}")
 
-        prompt_parts.append("Provide comprehensive requirements in the structured JSON format.")
+        prompt_parts.append(
+            "Provide comprehensive requirements in the structured JSON format. "
+            "Be specific about actors, workflows, data handling, and measurable acceptance criteria."
+        )
 
         input_message = AgentMessage(
             from_agent=AgentRole.ORCHESTRATOR,

@@ -85,6 +85,8 @@ pytest tests/ -v
 
 ## Architecture
 
+See [docs/architecture_and_design.md](docs/architecture_and_design.md) for a detailed platform architecture & integration design.
+
 ### LangGraph Agent
 
 The agent uses LangGraph's `StateGraph` for structured workflow:

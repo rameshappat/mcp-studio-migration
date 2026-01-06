@@ -134,6 +134,19 @@ class BaseAgent(ABC):
             return ChatAnthropic(model=model, temperature=temperature)
 
         # Default: OpenAI
+        json_mode = os.getenv("SDLC_OPENAI_JSON_MODE", "true").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "y",
+            "on",
+        }
+        if json_mode:
+            return ChatOpenAI(
+                model=model,
+                temperature=temperature,
+                model_kwargs={"response_format": {"type": "json_object"}},
+            )
         return ChatOpenAI(model=model, temperature=temperature)
 
     @staticmethod

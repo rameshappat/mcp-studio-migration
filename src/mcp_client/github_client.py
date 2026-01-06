@@ -82,13 +82,18 @@ class GitHubMCPClient:
                 result = await session.call_tool(tool_name, arguments)
 
                 # Most MCP servers return JSON in a text payload; return raw if not parseable.
-                if result.content and hasattr(result.content[0], "text"):
-                    text = result.content[0].text
-                    try:
-                        import json
+                if result.content:
+                    texts: list[str] = []
+                    for item in result.content:
+                        if hasattr(item, "text") and isinstance(item.text, str):
+                            texts.append(item.text)
+                    if texts:
+                        text = "\n".join(texts)
+                        try:
+                            import json
 
-                        return json.loads(text)
-                    except Exception:
-                        return {"text": text}
+                            return json.loads(text)
+                        except Exception:
+                            return {"text": text}
 
                 return result

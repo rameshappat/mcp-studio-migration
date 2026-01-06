@@ -143,7 +143,8 @@ Required JSON shape (you may add additional fields, but keep these keys):
 }
 
 Quality bar:
-- Provide enough detail that a senior engineering team can implement APIs, data models, authz, and deployment without major design gaps.
+- Provide enough detail that a senior engineering team can implement APIs, data models, authz, deployment, and operations without major design gaps.
+- Include at least: concrete authn/authz approach, key threats + mitigations, telemetry strategy, and failure-mode/runbook considerations.
 """
 
     async def _process_response(
@@ -224,6 +225,8 @@ Quality bar:
             to_agent=self.role,
             content=f"""Based on the following requirements and user stories, create a 
 comprehensive software architecture.
+
+Treat this as an enterprise stakeholder demo: the output should be production-oriented and implementation-ready.
 
 Project: {context.project_name}
 Description: {context.project_description}
