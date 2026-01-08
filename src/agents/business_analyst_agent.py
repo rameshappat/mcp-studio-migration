@@ -219,9 +219,25 @@ Include explicit assumptions and open questions when details are missing.""",
         created_items = {"epics": [], "stories": [], "tasks": []}
         project = self._ado_client.project
 
+        # Get epics and stories from context, with fallback to work_items dict
+        epics = context.epics
+        stories = context.stories
+        
+        # Fallback: if context.epics/stories are empty but work_items exists, extract from there
+        if not epics and hasattr(context, 'work_items') and isinstance(context.work_items, dict):
+            epics = context.work_items.get("epics", [])
+            logger.info(f"Using epics from context.work_items: {len(epics)} found")
+        if not stories and hasattr(context, 'work_items') and isinstance(context.work_items, dict):
+            stories = context.work_items.get("stories", [])
+            logger.info(f"Using stories from context.work_items: {len(stories)} found")
+        
+        if not epics and not stories:
+            logger.warning("No epics or stories found in context to push to Azure DevOps")
+            return {"error": "No work items found in context. Please ensure work items were created successfully."}
+
         try:
             # Create Epics using correct tool name and parameter format
-            for epic in context.epics:
+            for epic in epics:
                 fields = [
                     {"name": "System.Title", "value": epic["title"]},
                     {"name": "System.Description", "value": epic.get("description", ""), "format": "Html"},
@@ -248,7 +264,7 @@ Include explicit assumptions and open questions when details are missing.""",
             # Note: Azure DevOps Basic process uses "Issue" instead of "User Story"
             # Agile process uses "User Story", Scrum uses "Product Backlog Item"
             story_type = "Issue"  # Basic process template
-            for story in context.stories:
+            for story in stories:
                 acceptance_criteria = "\n".join(
                     f"- {ac}" for ac in story.get("acceptance_criteria", [])
                 )

@@ -1,5 +1,6 @@
 """Base agent class for all specialized agents."""
 
+import asyncio
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -12,6 +13,11 @@ from langchain_openai import ChatOpenAI
 from langsmith import traceable
 
 logger = logging.getLogger(__name__)
+
+# Rate limit retry configuration
+MAX_RETRIES = 5
+INITIAL_RETRY_DELAY = 10  # seconds
+MAX_RETRY_DELAY = 120  # seconds
 
 
 class AgentRole(Enum):
@@ -55,6 +61,7 @@ class AgentContext:
     requirements: dict[str, Any] = field(default_factory=dict)
     epics: list[dict[str, Any]] = field(default_factory=list)
     stories: list[dict[str, Any]] = field(default_factory=list)
+    work_items: dict[str, Any] = field(default_factory=dict)  # Raw work items dict from BA agent
     architecture: dict[str, Any] = field(default_factory=dict)
     code_artifacts: dict[str, str] = field(default_factory=dict)
     ado_work_items: list[dict[str, Any]] = field(default_factory=list)
@@ -131,7 +138,15 @@ class BaseAgent(ABC):
                     "Anthropic provider selected but langchain-anthropic is not installed. "
                     "Install it (pip install langchain-anthropic) or set SDLC_LLM_PROVIDER_DEFAULT=openai."
                 ) from e
-            return ChatAnthropic(model=model, temperature=temperature)
+            # Limit max_tokens to avoid rate limit issues (8000 tokens/min org limit)
+            # and enable retries for rate limit errors
+            max_tokens = int(os.getenv("SDLC_ANTHROPIC_MAX_TOKENS", "4096"))
+            return ChatAnthropic(
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                max_retries=3,
+            )
 
         # Default: OpenAI
         json_mode = os.getenv("SDLC_OPENAI_JSON_MODE", "true").strip().lower() in {
@@ -145,9 +160,10 @@ class BaseAgent(ABC):
             return ChatOpenAI(
                 model=model,
                 temperature=temperature,
+                max_retries=3,
                 model_kwargs={"response_format": {"type": "json_object"}},
             )
-        return ChatOpenAI(model=model, temperature=temperature)
+        return ChatOpenAI(model=model, temperature=temperature, max_retries=3)
 
     @staticmethod
     def _resolve_model_name(role: AgentRole, default: str) -> str:
@@ -233,8 +249,8 @@ class BaseAgent(ABC):
         # Build messages for the LLM
         messages = self._build_messages(input_message, context)
 
-        # Generate response
-        response = await self._llm.ainvoke(messages)
+        # Generate response with retry logic for rate limits
+        response = await self._invoke_with_retry(messages)
 
         # Process the response into an agent message
         output = await self._process_response(response, context)
@@ -253,6 +269,46 @@ class BaseAgent(ABC):
         context.conversation_history.append(output)
 
         return output
+
+    async def _invoke_with_retry(self, messages: list[BaseMessage]) -> AIMessage:
+        """Invoke LLM with exponential backoff retry for rate limit errors.
+
+        Args:
+            messages: The messages to send to the LLM.
+
+        Returns:
+            The LLM response.
+
+        Raises:
+            Exception: If all retries are exhausted.
+        """
+        last_error = None
+        delay = INITIAL_RETRY_DELAY
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await self._llm.ainvoke(messages)
+            except Exception as e:
+                error_str = str(e).lower()
+                # Check for rate limit errors (429 or rate_limit in message)
+                if "429" in str(e) or "rate_limit" in error_str or "rate limit" in error_str:
+                    last_error = e
+                    if attempt < MAX_RETRIES - 1:
+                        logger.warning(
+                            f"Rate limit hit, waiting {delay}s before retry "
+                            f"(attempt {attempt + 1}/{MAX_RETRIES})"
+                        )
+                        print(f"⏳ Rate limit reached. Waiting {delay} seconds before retry...")
+                        await asyncio.sleep(delay)
+                        delay = min(delay * 2, MAX_RETRY_DELAY)  # Exponential backoff
+                    else:
+                        logger.error(f"Rate limit: all {MAX_RETRIES} retries exhausted")
+                        raise
+                else:
+                    # Non-rate-limit error, raise immediately
+                    raise
+
+        raise last_error
 
     def _build_messages(
         self, input_message: AgentMessage, context: AgentContext
