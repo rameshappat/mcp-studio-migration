@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDLC Pipeline - LangGraph Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #00473C 0%, #003d33 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        .diagram-container {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        .diagram-title {
+            font-size: 1.3rem;
+            color: #00473C;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a9a7c;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8faf8;
+            border-radius: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+        .legend-text {
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #86efac;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        footer {
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            margin-top: 30px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 SDLC Pipeline - LangGraph Studio</h1>
+            <p>Deep Agents Architecture with Human-in-the-Loop Interrupts</p>
+        </header>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">10</div>
+                <div class="stat-label">Pipeline Stages</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">17</div>
+                <div class="stat-label">Interrupt Points</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">4</div>
+                <div class="stat-label">AI Agents</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">3</div>
+                <div class="stat-label">MCP Integrations</div>
+            </div>
+        </div>
+
+        <div class="diagram-container">
+            <h2 class="diagram-title">📊 Complete Pipeline Flow</h2>
+            <div class="mermaid">
+flowchart TD
+    %% ========== START ==========
+    START([🚀 START]) --> init[initialize]
+    
+    %% ========== REQUIREMENTS STAGE ==========
+    subgraph REQ["📋 REQUIREMENTS"]
+        init --> req[requirements<br/>ProductManagerAgent]
+        req --> req_apr{{"🔴 approval"}}
+    end
+    
+    req_apr -->|"✅ approve"| wi
+    req_apr -->|"🔄 revise"| req
+    req_apr -->|"❌ reject"| failed
+    
+    %% ========== WORK ITEMS STAGE ==========
+    subgraph WI["📝 WORK ITEMS"]
+        wi[work_items<br/>BusinessAnalystAgent] --> wi_apr{{"🔴 approval"}}
+    end
+    
+    wi_apr -->|"✅ approve"| ado_conf
+    wi_apr -->|"🔄 revise"| wi
+    wi_apr -->|"❌ reject"| failed
+    
+    %% ========== ADO PUSH STAGE ==========
+    subgraph ADO["☁️ AZURE DEVOPS"]
+        ado_conf{{"🔴 confirm"}}
+        ado_conf -->|"✅ yes"| ado_push[Push to ADO]
+        ado_conf -->|"⏭️ skip"| tp_conf
+        ado_push --> tp_conf
+        
+        tp_conf{{"🔴 test plan?"}}
+        tp_conf -->|"🆕 new"| tp_input["Multi-step Input<br/>(Name, Iteration, Desc)"]
+        tp_conf -->|"📂 existing"| tp_exist["Use Existing<br/>(Plan ID, Suite ID)"]
+        tp_conf -->|"⏭️ skip"| arch
+        tp_input --> tp_exec[Create Test Plan<br/>+ Suite + Cases]
+        tp_exist --> tp_exec
+    end
+    
+    tp_exec --> arch
+    
+    %% ========== ARCHITECTURE STAGE ==========
+    subgraph ARCH["🏗️ ARCHITECTURE"]
+        arch[architecture<br/>ArchitectAgent] --> arch_apr{{"🔴 approval"}}
+    end
+    
+    arch_apr -->|"✅ approve"| mer_conf
+    arch_apr -->|"🔄 revise"| arch
+    arch_apr -->|"❌ reject"| failed
+    
+    %% ========== MERMAID RENDER STAGE ==========
+    subgraph MER["📊 MERMAID"]
+        mer_conf{{"🔴 render?"}}
+        mer_conf -->|"✅ yes"| mer_exec[Render Diagrams<br/>MermaidMCPClient]
+        mer_conf -->|"⏭️ skip"| dev
+        mer_exec --> dev
+    end
+    
+    %% ========== DEVELOPMENT STAGE ==========
+    subgraph DEV["💻 DEVELOPMENT"]
+        dev[development<br/>DeveloperAgent] --> dev_apr{{"🔴 approval"}}
+    end
+    
+    dev_apr -->|"✅ approve"| gh_conf
+    dev_apr -->|"🔄 revise"| dev
+    dev_apr -->|"❌ reject"| failed
+    
+    %% ========== GITHUB PUSH STAGE ==========
+    subgraph GH["🐙 GITHUB"]
+        gh_conf{{"🔴 push?"}}
+        gh_conf -->|"✅ yes"| gh_input["Multi-step Input<br/>(Owner, Repo, Branch)"]
+        gh_conf -->|"⏭️ skip"| completed
+        gh_input --> gh_exec["GitHub Push<br/>create_repo → branch<br/>→ push → PR"]
+    end
+    
+    gh_exec --> completed
+    
+    %% ========== TERMINAL NODES ==========
+    completed([🎉 COMPLETED])
+    failed([❌ FAILED])
+    
+    completed --> END([END])
+    failed --> END
+    
+    %% ========== STYLING ==========
+    classDef startEnd fill:#00473C,stroke:#4a9a7c,stroke-width:2px,color:#fff
+    classDef agent fill:#005c40,stroke:#4a9a7c,stroke-width:2px,color:#fff
+    classDef interrupt fill:#8B4513,stroke:#D2691E,stroke-width:3px,color:#fff
+    classDef success fill:#228B22,stroke:#32CD32,stroke-width:2px,color:#fff
+    classDef failure fill:#8B0000,stroke:#FF4500,stroke-width:2px,color:#fff
+    
+    class START,END startEnd
+    class init,req,wi,ado_push,tp_exec,tp_input,tp_exist,arch,mer_exec,dev,gh_input,gh_exec agent
+    class req_apr,wi_apr,ado_conf,tp_conf,arch_apr,mer_conf,dev_apr,gh_conf interrupt
+    class completed success
+    class failed failure
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #005c40;"></div>
+                    <span class="legend-text"><strong>Agent Node</strong> - AI agent execution</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8B4513;"></div>
+                    <span class="legend-text"><strong>🔴 Interrupt</strong> - Human-in-the-loop</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #228B22;"></div>
+                    <span class="legend-text"><strong>✅ Success</strong> - Pipeline completed</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #8B0000;"></div>
+                    <span class="legend-text"><strong>❌ Failed</strong> - Pipeline rejected</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00473C;"></div>
+                    <span class="legend-text"><strong>Start/End</strong> - Terminal nodes</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4a9a7c; opacity: 0.3;"></div>
+                    <span class="legend-text"><strong>Subgraph</strong> - Stage grouping</span>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            Northern Trust | MCP Agentic Platform | LangGraph Studio | Coforge
+        </footer>
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#005c40',
+                primaryTextColor: '#ffffff',
+                primaryBorderColor: '#4a9a7c',
+                lineColor: '#4a9a7c',
+                secondaryColor: '#003d33',
+                tertiaryColor: '#f0f8f0',
+                background: '#ffffff',
+                fontSize: '14px'
+            },
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            }
+        });
+    </script>
+</body>
+</html>
